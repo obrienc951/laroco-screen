@@ -1,0 +1,14 @@
+# Python environment
+.venv/
+__pycache__/
+
+# Data and results - never upload
+data/
+output/
+*.gpkg
+*.xlsx
+*.csv
+*.geojson
+
+# Mac system files
+.DS_Store

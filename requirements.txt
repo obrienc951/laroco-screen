@@ -1,0 +1,3 @@
+geopandas>=1.0   # maps + tables (brings shapely, pyogrio, pandas)
+pyyaml           # reads config.yaml
+openpyxl         # writes Excel files

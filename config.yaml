@@ -1,0 +1,100 @@
+# =====================================================================
+# LAROCO SITE SCREEN — CONFIGURATION
+# =====================================================================
+# This is the ONLY file you should need to edit day-to-day.
+# YAML is a simple text format: "key: value". Indentation matters
+# (use spaces, never tabs). Lines starting with # are comments.
+# All money in EUR. All areas in hectares (ha) unless stated.
+# =====================================================================
+
+# --- 1. INPUT FILES ---------------------------------------------------
+# Paths are relative to the project folder.
+# Set a layer to null (no quotes) if you don't have it yet; the
+# pipeline will skip that check and log that it did so.
+ inputs:
+    rzlt: data/raw/sample_rzlt.geojson
+    planning: data/raw/sample_planning.geojson
+    flood: data/raw/sample_flood.geojson                              # optional: OPW flood zone A extents
+
+# --- 2. COLUMN NAMES --------------------------------------------------
+# Government datasets name their columns differently. Run
+#   python src/inspect_data.py
+# first; it prints the column names in each file. Copy the right
+# names in here.
+columns:
+  rzlt_la: LA_NAME            # column holding the local authority name
+  rzlt_id: OBJECTID           # unique parcel id column
+  planning_decision: Decision # e.g. "GRANTED" / "REFUSED"
+  planning_date: DecisionDate # decision date
+  planning_ref: PlanningRef   # application reference number
+
+# --- 3. GEOGRAPHY -----------------------------------------------------
+# Which local authorities to screen. Empty list [] = whole country.
+# Names must match the values in the rzlt_la column exactly.
+target_las: ["Fingal County Council"]
+
+# Irish Transverse Mercator (EPSG:2157) measures in metres, so areas
+# and distances calculated in it are accurate. Don't change.
+working_crs: 2157
+
+# --- 4. HARD FILTERS (parcel is DROPPED if it fails) -------------------
+filters:
+  min_area_ha: 0.2
+  max_area_ha: 2.0
+  exclude_flood_zone_a: true
+  flood_overlap_max_pct: 25        # drop if >25% of parcel is in Flood Zone A
+  exclude_live_permission: true
+  permission_lookback_years: 5     # a grant within 5 yrs = treat as live
+
+# --- 5. CAPACITY ASSUMPTIONS ------------------------------------------
+capacity:
+  net_to_gross: 0.75          # share of site usable for homes (roads/open space take the rest)
+  density_dph: 40             # dwellings per hectare (check Compact Settlement Guidelines for the location)
+  avg_unit_sqm: 95            # average home size, square metres
+
+# --- 6. VALUE ASSUMPTIONS (per local authority) ------------------------
+# Sales value per sqm of finished home. Fill from Property Price
+# Register / Daft / agent evidence. "default" is used for any LA
+# not listed.
+sales_value_psqm:
+  default: 4200
+  "Fingal County Council": 4600
+
+# Current value of the land per hectare WITHOUT planning permission
+# (what a developer would pay today, or existing use value).
+current_value_per_ha:
+  default: 400000
+  "Fingal County Council": 600000
+
+# --- 7. DEVELOPMENT COST ASSUMPTIONS (residual appraisal) --------------
+costs:
+  build_cost_psqm: 2600       # construction cost per sqm (incl. external works)
+  prof_fees_pct: 0.10         # architects, engineers etc, as % of build cost
+  contributions_per_unit: 15000   # development contributions / connections
+  finance_pct_gdv: 0.06       # finance cost, % of total sales value (GDV)
+  sales_costs_pct_gdv: 0.02   # agents, legal on sales
+  developer_profit_pct_gdv: 0.15  # profit a developer requires
+
+# --- 8. LAROCO DEAL ASSUMPTIONS ---------------------------------------
+laroco:
+  promotion_cost_base: 40000      # fixed planning cost per site
+  promotion_cost_per_unit: 800    # variable cost scaling with scheme size
+  laroco_share: 0.30              # Laroco's share of net uplift
+  min_laroco_fee: 50000           # drop sites earning Laroco less than this
+
+# --- 9. SCORING WEIGHTS -----------------------------------------------
+# Each factor scores 0-1; weights say how much each matters.
+# They are normalised, so they don't need to add to 1.
+weights:
+  fee: 0.40           # bigger Laroco fee = better
+  margin: 0.25        # uplift relative to current value (resilience)
+  size_fit: 0.15      # closeness to the sweet-spot size
+  history: 0.10       # planning history signal
+  flood: 0.10         # less flood overlap = better
+
+sweet_spot_ha: 0.8    # ideal parcel size for size_fit score
+
+# --- 10. OUTPUT -------------------------------------------------------
+output:
+  top_n: 30
+  folder: output
